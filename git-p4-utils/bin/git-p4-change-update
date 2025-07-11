@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cl=$1
+git-p4-clean-reconcile
+p4 reopen -c $cl '...'
+p4 shelve -r -c $cl
+p4 revert -k '...'

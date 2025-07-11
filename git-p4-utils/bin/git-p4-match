@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+message="$1"
+eval $(p4 set -q P4CLIENT)
+p4 changes -l -s pending -c $P4CLIENT | awk '
+    /^Change/ { cl = $2; desc = NR + 2; message = ""; next }
+    /^\t/ { message = message substr($0, 2) "\n"; next }
+    /^$/ && NR >= desc {
+        message = substr(message, 1, length(message) - 1);
+        if (message == target) {
+           found = cl
+           exit
+        }
+        cl = 0
+        next
+    }
+    END {
+        if (found)
+           print found
+    }
+' "target=$message"

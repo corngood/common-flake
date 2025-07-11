@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+p4 revert -k '...'
+git submodule update --recursive
+git clean -ffd
+p4 reconcile -m -f

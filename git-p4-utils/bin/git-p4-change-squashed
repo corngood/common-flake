@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+rev=$1
+git-p4-clean-reconcile
+cl=$(p4 change -o | \
+         awk "/<enter description here>/ { while (\"git log --pretty=format:%s $rev..HEAD\" | getline) { print \"\\t\"\$0 }; next } { print }" | \
+         p4 change -i | \
+         sed -n 's:^Change \(\w*\) created.*$:\1:p')
+p4 shelve -c $cl
+p4 revert -k '...'

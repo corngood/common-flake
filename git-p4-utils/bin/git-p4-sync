@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+p4 sync '...' > /dev/null
+git add .
+exec git commit -m "sync to //golf/$(p4 switch) @$(p4 changes -m1 '...#have' | cut -f2 -d' ')"

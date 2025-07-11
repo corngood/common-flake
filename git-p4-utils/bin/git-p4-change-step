@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+review=1
+match=1
+existing=
+
+for i do
+    case $i in
+        --no-review) review=;;
+        --no-match) match=;;
+        --existing) existing=1;;
+        *) exit 1
+    esac
+done
+
+swarm_url=$(p4 -ztag property -l -n P4.Swarm.URL -T value | cut -f3- -d' ')
+user=$(p4 set -q P4USER | cut -f2- -d=)
+auth_id=$(p4 -ztag configure show auth.id | awk '/\.\.\. Value / {print $3}')
+ticket=$(p4 tickets | awk -v auth_id="$auth_id" '$1 == "localhost:" auth_id { print $3 }')
+
+gitdir=`git rev-parse --git-dir`
+onto=`<$gitdir/rebase-merge/onto`
+
+message=`git log --reverse --pretty=format:%B $onto..HEAD`
+
+git-p4-clean-reconcile
+
+cl=
+if [ $match ]
+then
+    cl=`git-p4-match "$message"`
+fi
+
+if [ "$cl" != "" ]
+then
+    p4 reopen -c $cl '...'
+    p4 shelve -r -c $cl
+    echo updated changelist $cl
+else
+    if [ $existing ]
+    then
+        echo no changelist found for "$message"
+        exit 2
+    fi
+    p4message=`echo "$message" | sed s:^:\\\\t:`
+    cl=$(p4 change -o | \
+             awk '/<enter description here>/ { print message; next } { print }' "message=$p4message" | \
+             p4 change -i | \
+             sed -n 's:^Change \(\w*\) created.*$:\1:p')
+    p4 shelve -c $cl
+    echo created changelist $cl
+    if [ $review ]
+    then
+        curl -f -u "$user:$ticket" -X POST -d "change=$cl" "$swarm_url/api/v9/reviews/";
+        echo created review
+    fi
+fi
+git tag -f p4/$cl
+p4 revert -k '...'
+git reset --hard $onto

@@ -1,0 +1,2 @@
+#!/bin/sh -e
+exec git show --no-decorate -s --pretty=format:%B --abbrev-commit "$@"
